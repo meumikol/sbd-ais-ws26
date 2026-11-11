@@ -1,8 +1,11 @@
 package rest
 
 import (
+	"encoding/json"
 	"net/http"
+	"ordersystem/model"
 	"ordersystem/repository"
+	"time"
 
 	"github.com/go-chi/render"
 )
@@ -15,16 +18,39 @@ import (
 // @Router 			/api/menu [get]
 func GetMenu(db *repository.DatabaseHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// todo
-		// get slice from db
-		// render.Status(r, http.StatusOK)
-		// render.JSON(w, r, <your-slice>)
+		drinks := db.GetDrinks()
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, drinks)
 	}
 }
 
-// todo create GetOrders /api/order/all
+// GetOrders 		godoc
+// @tags 			Order
+// @Description 	Returns the order history
+// @Produce  		json
+// @Success 		200 {array} model.Order
+// @Router 			/api/order/all [get]
+func GetOrders(db *repository.DatabaseHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		orders := db.GetOrders()
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, orders)
+	}
+}
 
-// todo create GetOrdersTotal /api/order/total
+// GetOrdersTotal 	godoc
+// @tags 			Order
+// @Description 	Returns a map of drink ID to the total amount ordered
+// @Produce  		json
+// @Success 		200 {object} map[uint64]uint64
+// @Router 			/api/order/totalled [get]
+func GetOrdersTotal(db *repository.DatabaseHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		totalled := db.GetTotalledOrders()
+		render.Status(r, http.StatusOK)
+		render.JSON(w, r, totalled)
+	}
+}
 
 // PostOrder 		godoc
 // @tags 			Order
@@ -37,11 +63,21 @@ func GetMenu(db *repository.DatabaseHandler) http.HandlerFunc {
 // @Router 			/api/order [post]
 func PostOrder(db *repository.DatabaseHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// todo
-		// declare empty order struct
-		// err := json.NewDecoder(r.Body).Decode(&<your-order-struct>)
-		// handle error and render Status 400
-		// add to db
+		var order model.Order
+		if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, "invalid order: "+err.Error())
+			return
+		}
+		if order.Amount == 0 {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, "amount must be greater than 0")
+			return
+		}
+		if order.CreatedAt.IsZero() {
+			order.CreatedAt = time.Now()
+		}
+		db.AddOrder(&order)
 		render.Status(r, http.StatusOK)
 		render.JSON(w, r, "ok")
 	}
